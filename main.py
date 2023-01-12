@@ -1,73 +1,100 @@
 def main():
-    global sys
     import sys
     global shutil
     import shutil
-    global os
-    import os.path
     import argparse
     import sqlite3
     import requests
     import datetime
     from termcolor import colored
 
-    global termsize
-    termsize = shutil.get_terminal_size().columns
+    # Argparse setup
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-k",   "--key",       help="Set api key")
+    parser.add_argument("-lat", "--latitude",  help="Set latitude")
+    parser.add_argument("-lon", "--longitude", help="Set longitude")
+    parser.add_argument("-a",   "--ascii",     help="Use only ascii characters", action="store_true")
+    args = parser.parse_args()
 
-    # Set up argparse
-    parser_setup(argparse)
-
-    # Define ascii
+    # Check whether the unicode icons or the text should be used
+    # based on input the input parameter '--ascii'.
     if args.ascii:
-        UP_ARROW   = "Max:"
+        UP_ARROW = "Max:"
         DOWN_ARROW = "Min:"
     else:
-        UP_ARROW   = "▴"
+        UP_ARROW = "▴"
         DOWN_ARROW = "▾"
 
-    # Connect to sqlite3 database
-    connect_to_database(sqlite3)
+    # Connect to and set up sqlite3 database
+    con = sqlite3.connect(__file__.replace("main.py", "") + "fetch_info.db")
+    c = con.cursor()
+    c.execute("CREATE TABLE IF NOT EXISTS fetch_info(api_key, lon, lat)")
+    if c.execute("SELECT * FROM fetch_info").fetchall() == []:
+        c.execute("INSERT INTO fetch_info VALUES('key', 'lon', 'lat')")
 
-    # Try to set the database values from values of the arguments
-    collect_values(args.key, "Key", "api_key")
-    collect_values(args.latitude, "Latitude", "lat")
-    collect_values(args.longitude, "Longitude", "lon")
+    # Try to set the database values from values of the arguments '--key', '--lat' and '--lon'.
+    collect_values(key, args.key, "Key", "api_key")
+    collect_values(key, args.latitude, "Latitude", "lat")
+    collect_values(key, args.longitude, "Longitude", "lon")
 
-    # Set api parameters
+    # Get the api parameters from the database.
     api_key = c.execute("SELECT api_key FROM fetch_info").fetchone()[0]
-    lat =     c.execute("SELECT lat FROM fetch_info").fetchone()[0]
-    lon =     c.execute("SELECT lon FROM fetch_info").fetchone()[0]
+    lat = c.execute("SELECT lat FROM fetch_info").fetchone()[0]
+    lon = c.execute("SELECT lon FROM fetch_info").fetchone()[0]
 
     try:
+        # Try to send an api request.
         response = requests.get(f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=metric").json()
         if response["cod"] == 200:
             # Define and format response
-            city_name           = response["name"]
-            main_temp           = response["main"]["temp"]
+            city_name = response["name"]
+            main_temp = response["main"]["temp"]
             weather_description = response["weather"][0]["description"].title()
-            max_temp            = response["main"]["temp_max"]
-            min_temp            = response["main"]["temp_min"]
-            feels_like          = response["main"]["feels_like"]
-            wind_speed          = str(round(response["wind"]["speed"] * 10) / 10)
-            wind_dir            = get_direction(response["wind"]["deg"])
-            wind_gust           = str(round(response["wind"]["gust"] * 10) / 10)
-            sunrise             = str(datetime.datetime.fromtimestamp(response["sys"]["sunrise"]))[11:-3]
-            sunset              = str(datetime.datetime.fromtimestamp(response["sys"]["sunset"]))[11:-3]
-            sun_color           = get_sun_color(sunrise, sunset)
+            max_temp = response["main"]["temp_max"]
+            min_temp = response["main"]["temp_min"]
+            feels_like = response["main"]["feels_like"]
+            wind_speed = str(round(response["wind"]["speed"] * 10) / 10)
+            wind_dir = get_direction(response["wind"]["deg"])
+            wind_gust = str(round(response["wind"]["gust"] * 10) / 10)
+            sunrise = str(datetime.datetime.fromtimestamp(response["sys"]["sunrise"]))[11:-3]
+            sunset = str(datetime.datetime.fromtimestamp(response["sys"]["sunset"]))[11:-3]
+            sun_color = get_sun_color(sunrise, sunset)
 
 
             # Print
             print()
             printc(f"Weather in " + city_name)
-            printc(colored(str(round(main_temp)) + "°", get_temp_color(main_temp), attrs=["bold"]) + ", " + weather_description, str(round(main_temp)) + "°, " + weather_description)
-            printc(colored(f"{UP_ARROW} ", "green") + colored(str(round(max_temp)) + "°", get_temp_color(max_temp), attrs=["bold"]) + ", "+ colored(f"{DOWN_ARROW} ", "red") + colored(str(round(min_temp)) + "°", get_temp_color(min_temp), attrs=["bold"]), UP_ARROW + " " + str(round(response["main"]["temp_max"])) + "°, " + DOWN_ARROW + str(round(min_temp)) + "°")
-            printc("Feels like "+ colored(str(round(feels_like)) + "°", get_temp_color(feels_like), attrs=["bold"]), "Feels like " + str(round(feels_like)) + "°")
-            printc("Wind is blowing " + colored(wind_dir, "magenta", attrs=["bold"]) + " at " + colored(wind_speed + " m/s", get_wind_speed_color(wind_speed), attrs=["bold"]) + ", with gusts up to " + colored(wind_gust + " m/s", get_wind_speed_color(wind_gust), attrs=["bold"]), "Wind is blowing " + wind_dir + " at " + str(round(response["wind"]["speed"])) + " m/s, with gusts up to " + wind_gust)
-            printc("Sun is up from " + colored(sunrise, sun_color, attrs=["bold"]) + " to " + colored(sunset, sun_color, attrs=["bold"]), "Sun is up from " + sunrise + " to " + sunset)
+            printc(
+                colored(str(round(main_temp)) + "°", get_temp_color(main_temp), attrs=["bold"]) + ", " +
+                weather_description, str(round(main_temp)) + "°, " + weather_description
+            )
+            printc(
+                colored(f"{UP_ARROW} ", "green") + colored(str(round(max_temp)) + "°", get_temp_color(max_temp),
+                attrs=["bold"]) + ", "+ colored(f"{DOWN_ARROW} ", "red") + colored(str(round(min_temp)) + "°",
+                get_temp_color(min_temp), attrs=["bold"]), UP_ARROW + " " +
+                str(round(response["main"]["temp_max"])) + "°, " + DOWN_ARROW + str(round(min_temp)) + "°"
+            )
+            printc(
+                "Feels like "+ colored(str(round(feels_like)) + "°", get_temp_color(feels_like), attrs=["bold"]),
+                "Feels like " + str(round(feels_like)) + "°"
+            )
+            printc(
+                "Wind is blowing " + colored(wind_dir, "magenta", attrs=["bold"]) + " at " + colored(wind_speed +
+                " m/s", get_wind_speed_color(wind_speed), attrs=["bold"]) + ", with gusts up to " +
+                colored(wind_gust + " m/s", get_wind_speed_color(wind_gust), attrs=["bold"]),
+                "Wind is blowing " + wind_dir + " at " + str(round(response["wind"]["speed"])) +
+                " m/s, with gusts up to " + wind_gust
+            )
+            printc(
+                "Sun is up from " + colored(sunrise, sun_color, attrs=["bold"]) + " to " + colored(sunset,
+                sun_color, attrs=["bold"]), "Sun is up from " + sunrise + " to " + sunset
+            )
 
-        elif response["cod"] == 401: print("Invalid API key. Get one from https://www.openweathermap.org and use the --key option to set it")
+        elif response["cod"] == 401:
+            print("Invalid API key. Get one from https://www.openweathermap.org and use the --key option to set it")
 
-        elif response["cod"] == "400": print(response["message"].capitalize())
+        elif response["cod"] == "400":
+            print(response["message"].capitalize())
 
         else: print(response)
 
@@ -78,29 +105,8 @@ def main():
 
 
 
-def parser_setup(argparse):
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-k",   "--key",       help = "Set api key")
-    parser.add_argument("-lat", "--latitude",  help = "Set latitude")
-    parser.add_argument("-lon", "--longitude", help = "Set longitude")
-    parser.add_argument("-a",   "--ascii",     help = "Use only ascii characters", action = "store_true")
-    global args
-    args = parser.parse_args()
-
-
-
-def connect_to_database(sqlite3):
-    global con
-    con = sqlite3.connect(__file__.replace("main.py", "") + "fetch_info.db")
-    global c
-    c = con.cursor()
-    c.execute("CREATE TABLE IF NOT EXISTS fetch_info(api_key, lon, lat)")
-    if c.execute("SELECT * FROM fetch_info").fetchall() == []: c.execute("INSERT INTO fetch_info VALUES('key', 'lon', 'lat')")
-
-
-
-def collect_values(argument, argument_litteral, sql_entry):
-    if argument == None: return 0
+def collect_values(sys, argument, argument_litteral, sql_entry):
+    if argument is None: return 0
 
     try:
         if "\"" in argument or "'" in argument:
@@ -124,17 +130,17 @@ def collect_values(argument, argument_litteral, sql_entry):
 
 
 def check_for_sql_value(value):
-    return 1 if c.execute(f"SELECT '{value}' FROM fetch_info").fetchone() == None else 0
+    return 1 if c.execute(f"SELECT '{value}' FROM fetch_info").fetchone() is None else 0
 
 
 
-def printc(s_color, s_no_color = False):
-    print(getSpaces(s_no_color) + s_color) if s_no_color != False else print(getSpaces(s_color) + s_color)
+def printc(s_color, s_no_color=False):
+    print(get_spaces(s_no_color) + s_color) if s_no_color != False else print(get_spaces(s_color) + s_color)
 
 
 
-def getSpaces(s):
-    return " " * int((termsize - len(s)) / 2)
+def get_spaces(shutil, s):
+    return " " * int((shutil.get_terminal_size().columns - len(s)) / 2)
 
 
 
