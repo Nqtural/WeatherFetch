@@ -33,9 +33,9 @@ def main():
         c.execute("INSERT INTO fetch_info VALUES('key', 'lon', 'lat')")
 
     # Try to set the database values from values of the arguments '--key', '--lat' and '--lon'.
-    collect_values(key, args.key, "Key", "api_key")
-    collect_values(key, args.latitude, "Latitude", "lat")
-    collect_values(key, args.longitude, "Longitude", "lon")
+    collect_values(sys, args.key, "Key", "api_key")
+    collect_values(sys, args.latitude, "Latitude", "lat")
+    collect_values(sys, args.longitude, "Longitude", "lon")
 
     # Get the api parameters from the database.
     api_key = c.execute("SELECT api_key FROM fetch_info").fetchone()[0]
@@ -139,7 +139,7 @@ def printc(s_color, s_no_color=False):
 
 
 
-def get_spaces(shutil, s):
+def get_spaces(s):
     return " " * int((shutil.get_terminal_size().columns - len(s)) / 2)
 
 
