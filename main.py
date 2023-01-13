@@ -26,6 +26,8 @@ def main():
         DOWN_ARROW = "▾"
 
     # Connect to and set up sqlite3 database
+    global con
+    global c
     con = sqlite3.connect(__file__.replace("main.py", "fetch_info.db"))
     c = con.cursor()
     c.execute("CREATE TABLE IF NOT EXISTS fetch_info(api_key, lon, lat)")
