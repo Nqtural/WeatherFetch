@@ -26,7 +26,7 @@ def main():
         DOWN_ARROW = "▾"
 
     # Connect to and set up sqlite3 database
-    con = sqlite3.connect(__file__.replace("main.py", "") + "fetch_info.db")
+    con = sqlite3.connect(__file__.replace("main.py", "fetch_info.db"))
     c = con.cursor()
     c.execute("CREATE TABLE IF NOT EXISTS fetch_info(api_key, lon, lat)")
     if c.execute("SELECT * FROM fetch_info").fetchall() == []:
